@@ -145,7 +145,6 @@ def process_user(user_id: int, name: str) -> dict:
 # These all "work" at the call site — fail at runtime
 process_user("not-a-number", 42)        # TypeError at .upper()
 process_user(None, "Alice")             # Works until you use user_id as int
-process_user(1, "Alice", extra="oops")  # Python doesn't care about extra kwargs here
 
 # Even with mypy, you can still bypass types:
 data = json.loads('{"id": "oops"}')     # Always returns Any
