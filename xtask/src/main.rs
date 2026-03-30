@@ -316,6 +316,12 @@ enum ResolveResult {
 /// Resolve `request_target` (HTTP request path, e.g. `/foo/bar?x=1`) to a file under `site_canon`.
 /// Returns `ResolveResult::File` for success, `Redirect` if a trailing slash is needed for a directory,
 /// or `NotFound` for traversal attempts or missing files.
+///
+/// NOTE: This function preserves and hardens the multi-layer security from PR#18:
+/// 1. Percent-decoding via `percent_decode_path`.
+/// 2. Null byte rejection.
+/// 3. Traversal blocking (`..`).
+/// 4. Symlink escape prevention via canonicalization and prefix checking.
 fn resolve_site_file(site_canon: &Path, request_target: &str) -> ResolveResult {
     let path_only = match request_target
         .split('?')
@@ -326,6 +332,7 @@ fn resolve_site_file(site_canon: &Path, request_target: &str) -> ResolveResult {
         None => return ResolveResult::NotFound,
     };
 
+    // [Security] Handle percent-encoding and reject null bytes (from PR#18)
     let decoded = percent_decode_path(path_only);
     if decoded.as_bytes().contains(&0) {
         return ResolveResult::NotFound;
@@ -335,6 +342,7 @@ fn resolve_site_file(site_canon: &Path, request_target: &str) -> ResolveResult {
     let mut file_path = site_canon.to_path_buf();
     if !rel.is_empty() {
         for seg in rel.split('/').filter(|s| !s.is_empty()) {
+            // [Security] Block directory traversal (from PR#18)
             if seg == ".." {
                 return ResolveResult::NotFound;
             }
@@ -350,6 +358,7 @@ fn resolve_site_file(site_canon: &Path, request_target: &str) -> ResolveResult {
         file_path.push("index.html");
     }
 
+    // [Security] Canonicalize and verify we're still within site_canon (from PR#18)
     let real = match fs::canonicalize(&file_path) {
         Ok(r) => r,
         Err(_) => return ResolveResult::NotFound,
