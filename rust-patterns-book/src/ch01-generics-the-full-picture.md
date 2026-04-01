@@ -40,12 +40,14 @@ fn max_of_str<'a>(a: &'a str, b: &'a str) -> &'a str { if a >= b { a } else { b 
 
 **Comparison with C++**: Rust generics work like C++ templates but with one crucial difference — **bounds checking happens at definition, not instantiation**. In C++, a template compiles only when used with a specific type, leading to cryptic error messages deep in library code. In Rust, `T: PartialOrd` is checked when you define the function, so errors are caught early and messages are clear.
 
-```rust
+```rust,compile_fail
 // Rust: error at definition site — "T doesn't implement Display"
 fn broken<T>(val: T) {
     println!("{val}"); // ❌ Error: T doesn't implement Display
 }
+```
 
+```rust
 // Fix: add the bound
 fn fixed<T: std::fmt::Display>(val: T) {
     println!("{val}"); // ✅
@@ -56,7 +58,7 @@ fn fixed<T: std::fmt::Display>(val: T) {
 
 Monomorphization has a cost — binary size. Each unique instantiation duplicates the function body:
 
-```rust
+```rust,ignore
 // This innocent function...
 fn serialize<T: serde::Serialize>(value: &T) -> Vec<u8> {
     serde_json::to_vec(value).unwrap()
@@ -67,7 +69,7 @@ fn serialize<T: serde::Serialize>(value: &T) -> Vec<u8> {
 
 **Mitigation strategies**:
 
-```rust
+```rust,ignore
 // 1. Extract the non-generic core ("outline" pattern)
 fn serialize<T: serde::Serialize>(value: &T) -> Result<Vec<u8>, serde_json::Error> {
     // Generic part: only the serialization call
@@ -102,7 +104,7 @@ Three ways to handle "different types, same interface" in Rust:
 | **Enum** | Match arm | Compile time | ❌ (closed set) | Zero — no vtable |
 | **Trait object** (`dyn Trait`) | Dynamic (vtable) | Runtime | ✅ (open set) | Vtable pointer + indirect call |
 
-```rust
+```rust,ignore
 // --- GENERICS: Open set, zero cost, compile-time ---
 fn process<H: Handler>(handler: H, request: Request) -> Response {
     handler.handle(request) // Monomorphized — one copy per H
